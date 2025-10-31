@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 
 // Configuration
-const API_BASE_URL = 'http://localhost:5062'//!! UPDATE THIS to your backend port
+const API_BASE_URL = 'https://proj1-basictaskmanager-backend.onrender.com'//!! UPDATE THIS to your backend port
 
 // Type definition
 type Task = {
