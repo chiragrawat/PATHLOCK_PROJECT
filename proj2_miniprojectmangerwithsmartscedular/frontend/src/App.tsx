@@ -11,7 +11,7 @@ import type { FormEvent, ChangeEvent, ReactNode } from 'react';
 
 // --- CONFIGURATION ---
 // !! Make sure this port matches your backend (it was 5119 in your logs)
-const API_BASE_URL = 'http://localhost:5119/api'; 
+const API_BASE_URL = 'https://pathlock-project-1.onrender.com/api'; 
 const TOKEN_KEY = 'mini-pm-token';
 const EMAIL_KEY = 'mini-pm-email'; 
 
