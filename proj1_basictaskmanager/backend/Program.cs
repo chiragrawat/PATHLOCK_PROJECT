@@ -1,5 +1,5 @@
 using BasicTaskManager.Models;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,23 +7,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Use an in-memory database
-builder.Services.AddDbContext<TaskDbContext>(opt => opt.UseInMemoryDatabase("TaskList"));
-
-// --- THIS IS THE FIX ---
-// Add a new, permissive CORS policy
+// Add CORS services
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAllOrigins",
-        builder =>
+    options.AddPolicy("AllowReactApp",
+        policy =>
         {
-            builder.AllowAnyOrigin() // Allows requests from any URL
-                   .AllowAnyHeader()
-                   .AllowAnyMethod();
+            policy.WithOrigins("http://localhost:5173", "http://localhost:3000") // Allow common React dev ports
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
         });
 });
-// --- END OF FIX ---
-
 
 var app = builder.Build();
 
@@ -34,72 +28,75 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// --- THIS IS THE SECOND PART OF THE FIX ---
-// Tell the app to USE the new policy
-app.UseCors("AllowAllOrigins");
-// --- END OF FIX ---
+app.UseHttpsRedirection();
 
-app.UseHttpsRedirection(); // This is often removed for Render deployment
+// Use the CORS policy
+app.UseCors("AllowReactApp");
+
+// --- In-Memory Database ---
+var tasks = new List<TaskItem>
+{
+    new TaskItem { Id = Guid.NewGuid(), Description = "Learn .NET 8", IsCompleted = false },
+    new TaskItem { Id = Guid.NewGuid(), Description = "Build React App", IsCompleted = false },
+    new TaskItem { Id = Guid.NewGuid(), Description = "Implement API", IsCompleted = true }
+};
 
 // --- API Endpoints ---
 
-// GET all tasks
-app.MapGet("/api/tasks", async (TaskDbContext db) =>
-    await db.Tasks.ToListAsync());
+// GET /api/tasks
+app.MapGet("/api/tasks", () => {
+    return Results.Ok(tasks);
+});
 
-// GET a single task by ID
-app.MapGet("/api/tasks/{id}", async (TaskDbContext db, Guid id) =>
-    await db.Tasks.FindAsync(id)
-        is TaskItem task
-            ? Results.Ok(task)
-            : Results.NotFound());
-
-// POST (create) a new task
-app.MapPost("/api/tasks", async (TaskDbContext db, TaskItem task) =>
+// POST /api/tasks
+app.MapPost("/api/tasks", ([FromBody] TaskItemRequest request) =>
 {
-    // Ensure ID is new and task is not completed by default
-    task.Id = Guid.NewGuid();
-    task.IsCompleted = false;
+    if (string.IsNullOrWhiteSpace(request.Description))
+    {
+        return Results.BadRequest("Description is required.");
+    }
     
-    db.Tasks.Add(task);
-    await db.SaveChangesAsync();
+    var task = new TaskItem
+    {
+        Id = Guid.NewGuid(),
+        Description = request.Description,
+        IsCompleted = false
+    };
 
+    tasks.Add(task);
     return Results.Created($"/api/tasks/{task.Id}", task);
 });
 
-// PUT (update) a task
-app.MapPut("/api/tasks/{id}", async (TaskDbContext db, Guid id, TaskItem inputTask) =>
+// PUT /api/tasks/{id}
+app.MapPut("/api/tasks/{id}", ([FromRoute] Guid id) =>
 {
-    var task = await db.Tasks.FindAsync(id);
-
-    if (task is null) return Results.NotFound();
-
-    // Update properties
-    task.Description = inputTask.Description;
-    task.IsCompleted = inputTask.IsCompleted;
-
-    await db.SaveChangesAsync();
-
+    var task = tasks.FirstOrDefault(t => t.Id == id);
+    if (task == null)
+    {
+        return Results.NotFound();
+    }
+    
+    task.IsCompleted = !task.IsCompleted;
     return Results.NoContent();
 });
 
-// DELETE a task
-app.MapDelete("/api/tasks/{id}", async (TaskDbContext db, Guid id) =>
+// DELETE /api/tasks/{id}
+app.MapDelete("/api/tasks/{id}", ([FromRoute] Guid id) =>
 {
-    if (await db.Tasks.FindAsync(id) is TaskItem task)
+    var task = tasks.FirstOrDefault(t => t.Id == id);
+    if (task == null)
     {
-        db.Tasks.Remove(task);
-        await db.SaveChangesAsync();
-        return Results.NoContent();
+        return Results.NotFound();
     }
-
-    return Results.NotFound();
+    
+    tasks.Remove(task);
+    return Results.NoContent();
 });
 
-// Helper DbContext
-public class TaskDbContext : DbContext
-{
-    public TaskDbContext(DbContextOptions<TaskDbContext> options) : base(options) { }
-    public DbSet<TaskItem> Tasks => Set<TaskItem>();
-}
+app.Run();
 
+// DTO for the POST request
+public class TaskItemRequest
+{
+    public string Description { get; set; } = string.Empty;
+}
