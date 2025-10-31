@@ -1,4 +1,4 @@
-import React, { 
+import  { 
   useState, 
   useEffect, 
   createContext, 
@@ -7,7 +7,7 @@ import React, {
   useCallback 
 } from 'react';
 // We need these for type-only imports
-import type { FormEvent, ChangeEvent, ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 
 // --- CONFIGURATION ---
 // !! Make sure this port matches your backend (it was 5119 in your logs)
