@@ -13,7 +13,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactApp",
         policy =>
         {
-            policy.WithOrigins("http://localhost:5173", "http://localhost:3000","https://pathlock-project-1-frontend.onrender.com/") // Allow common React dev ports
+            policy.WithOrigins("*") // Allow common React dev ports
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
